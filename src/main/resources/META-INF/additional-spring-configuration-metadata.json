@@ -1,0 +1,17 @@
+{"properties": [
+  {
+    "name": "jobscheduler.enabled",
+    "type": "java.lang.Boolean",
+    "description": "Enables the JobScheduler"
+  },
+  {
+    "name": "jobscheduler.max-parallel-jobs",
+    "type": "java.lang.Integer",
+    "description": "Maximum number of scheduled Jobs to run in parallel."
+  },
+  {
+    "name": "jobscheduler.pollInterval",
+    "type": "java.lang.String",
+    "description": "Max delay between checking if there are scheduled Jobs ready to be executed given as a Duration string."
+  }
+]}
