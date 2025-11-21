@@ -15,7 +15,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-package dk.clanie.jobscheduling;
+package dk.clanie.jobscheduler;
 
 import static dk.clanie.core.Utils.filterList;
 import static dk.clanie.core.Utils.filterSet;
@@ -132,13 +132,15 @@ public class JobService {
 		List<JobInput> inputForMissingJobs = filterList(jobInputs, jobMethod -> !existingJobNames.contains(jobMethod.name()));
 		inputForMissingJobs.forEach(jobInput -> {
 			Method method = jobInput.method;
+			String qualifiedName = qualifiedName(method);
+			log.atDebug().log("Processing @ScheduledJob annotated method: {}", qualifiedName);
 			if (method.getParameterCount() > 0) {
-				throw new IllegalStateException(qualifiedName(method) + " has @ScheduledJob annotation but has parameters. No parameters are allowed.");
+				throw new IllegalStateException(qualifiedName + " has @ScheduledJob annotation but has parameters. No parameters are allowed.");
 			}
 			ScheduledJob annotation = jobInput.annotation();
 			int scheduleArgsCount = (annotation.cron().isEmpty() ? 0 : 1) + (annotation.delay().isEmpty() ? 0 : 1) + (annotation.rate().isEmpty() ? 0 : 1);
 			if (scheduleArgsCount > 1) {
-				throw new IllegalStateException(qualifiedName(method) + " has @ScheduledJob annotation with " + scheduleArgsCount + " schedule arguments. Exactly one is required.");
+				throw new IllegalStateException(qualifiedName + " has @ScheduledJob annotation with " + scheduleArgsCount + " schedule arguments. Exactly one is required.");
 			}
 			String scheduleAnnotationUsed = annotation.cron().isEmpty() ? annotation.delay().isEmpty() ? annotation.rate().isEmpty() ? null : "rate" : "delay" : "cron";
 			JobSchedule schedule = switch (scheduleAnnotationUsed) {
@@ -167,7 +169,7 @@ public class JobService {
 		Set<JobName> jobNamesEnabledInConfig = new HashSet<>();
 		Set<JobName> jobNamesDisabledInConfig = new HashSet<>();
 		jobNamesForAnnotatedMethods.forEach(jobName -> {
-			String property = "portfolio.jobScheduler.job." + jobName.bean() + "." + jobName.method() + ".enabled";
+			String property = "jobScheduler.job." + jobName.bean() + "." + jobName.method() + ".enabled";
 			(environment.getRequiredProperty(property, Boolean.class) ? jobNamesEnabledInConfig : jobNamesDisabledInConfig).add(jobName);
 		});
 		List<Job> jobsToDisable = jobRepository.findConfigEnabledJobsByNameIn(jobNamesDisabledInConfig);

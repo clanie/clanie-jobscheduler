@@ -15,7 +15,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-package dk.clanie.jobscheduling;
+package dk.clanie.jobscheduler;
 
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -88,8 +88,9 @@ public class JobScheduler {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void onApplicationReady() throws Exception {
-		initializationLatch.await();  // Wait for JobInitializer to complete (if present)
 		executorService.submit(() -> {
+			initializationLatch.await();  // Wait for JobInitializer to complete (if present)
+			log.info("Job scheduler started with max {} parallel jobs, polling every {}.", maxParallelJobs, pollInterval);
 			while (true) {
 				semaphore.acquire();  // Block if too many jobs are running
 				try {

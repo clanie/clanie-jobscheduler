@@ -15,7 +15,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-package dk.clanie.jobscheduling;
+package dk.clanie.jobscheduler;
 
 import static lombok.AccessLevel.PRIVATE;
 
@@ -30,10 +30,10 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-import dk.clanie.jobscheduling.JobSchedule.Cron;
-import dk.clanie.jobscheduling.JobSchedule.Delay;
-import dk.clanie.jobscheduling.JobSchedule.Manual;
-import dk.clanie.jobscheduling.JobSchedule.Rate;
+import dk.clanie.jobscheduler.JobSchedule.Cron;
+import dk.clanie.jobscheduler.JobSchedule.Delay;
+import dk.clanie.jobscheduler.JobSchedule.Manual;
+import dk.clanie.jobscheduler.JobSchedule.Rate;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;

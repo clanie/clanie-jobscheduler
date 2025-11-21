@@ -15,23 +15,22 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-package dk.clanie.jobscheduling;
+package dk.clanie.jobscheduler;
 
-import java.util.UUID;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+/**
+ * {@link EnableAutoConfiguration Auto-configuration} for clanie-jobscheduler.
+ */
+@AutoConfiguration
+@ComponentScan
+@EnableMongoRepositories
+@ConditionalOnProperty(prefix = "jobScheduler", name = "enabled", havingValue = "true")
+public class JobSchedulerAutoConfiguration {
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class JobFilter {
-
-	private UUID teantId;
-	private String match;
-	private Boolean excludeDisabled;
 
 }

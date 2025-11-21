@@ -15,20 +15,14 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-package dk.clanie.jobscheduling;
+package dk.clanie.jobscheduler;
 
-import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.ComponentScan;
+public record JobName(
+		String bean,
+		String method) {
 
-/**
- * {@link EnableAutoConfiguration Auto-configuration} for clanie-jobscheduler.
- */
-@AutoConfiguration
-@ComponentScan
-@ConditionalOnProperty(prefix = "jobScheduler", name = "enabled", havingValue = "true")
-public class JobSchedulerAutoConfiguration {
-
+	public String displayName() {
+		return bean + '.' + method;
+	}
 
 }

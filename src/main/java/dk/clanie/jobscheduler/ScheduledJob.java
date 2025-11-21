@@ -15,7 +15,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-package dk.clanie.jobscheduling;
+package dk.clanie.jobscheduler;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -32,7 +32,7 @@ import org.springframework.scheduling.support.CronExpression;
  * <p>
  * When using this annotation, the annotated method must be a Spring bean
  * method, and you must also add a configuration property named
- * {@code portfolio.jobScheduler.job.<beanName>.<methodName>.enabled},
+ * {@code jobScheduler.job.<beanName>.<methodName>.enabled},
  * so the job can be enabled or disabled in the configuration.
  */
 @Retention(RetentionPolicy.RUNTIME)

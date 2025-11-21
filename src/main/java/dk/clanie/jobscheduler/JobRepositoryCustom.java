@@ -15,14 +15,24 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-package dk.clanie.jobscheduling;
+package dk.clanie.jobscheduler;
 
-public record JobName(
-		String bean,
-		String method) {
+import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-	public String displayName() {
-		return bean + '.' + method;
-	}
+import org.springframework.data.domain.Pageable;
+
+public interface JobRepositoryCustom {
+
+
+	List<Job> find(UUID tenantId, Pageable pageable, JobFilter filter);
+	List<UUID> findIds(UUID tenantId, JobFilter filter);
+	long count(UUID tenantId, JobFilter filter);
+
+	Optional<ZonedDateTime> findNextExecutionTime();
+	Optional<Job> popForExecution();
+
 
 }

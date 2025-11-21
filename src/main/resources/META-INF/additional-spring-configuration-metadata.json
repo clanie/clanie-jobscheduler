@@ -1,17 +1,22 @@
 {"properties": [
   {
-    "name": "jobscheduler.enabled",
+    "name": "jobScheduler.enabled",
     "type": "java.lang.Boolean",
     "description": "Enables the JobScheduler"
   },
   {
-    "name": "jobscheduler.max-parallel-jobs",
+    "name": "jobScheduler.max-parallel-jobs",
     "type": "java.lang.Integer",
     "description": "Maximum number of scheduled Jobs to run in parallel."
   },
   {
-    "name": "jobscheduler.pollInterval",
+    "name": "jobScheduler.pollInterval",
     "type": "java.lang.String",
     "description": "Max delay between checking if there are scheduled Jobs ready to be executed given as a Duration string."
+  },
+  {
+    "name": "jobScheduler.exitWhenIdle",
+    "type": "java.lang.Boolean",
+    "description": "If true, the application will exit when there are no more jobs to execute."
   }
 ]}

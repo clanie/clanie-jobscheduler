@@ -15,12 +15,12 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-package dk.clanie.jobscheduling;
+package dk.clanie.jobscheduler;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 import lombok.extern.slf4j.Slf4j;
@@ -38,12 +38,12 @@ public class JobInitializationLatch {
 	/**
 	 * Creates a latch with count 1 if JobInitializer is present, 0 otherwise.
 	 */
-	public JobInitializationLatch(@Autowired(required = false) JobInitializer jobInitializer) {
-		if (jobInitializer != null) {
-			log.debug("JobInitializer detected - JobScheduler will wait for initial job scan to complete.");
+	public JobInitializationLatch(@Value("${jobScheduler.job.jobService.scanForJobs.enabled:false}" ) boolean jobScanningEnabled) {
+		if (jobScanningEnabled) {
+			log.debug("Job scanning is enabled - JobScheduler will wait for initial job scan to complete.");
 			this.latch = new CountDownLatch(1);
 		} else {
-			log.debug("JobInitializer not present - JobScheduler will start immediately.");
+			log.debug("Job scanning is not enabled - JobScheduler will start immediately.");
 			this.latch = new CountDownLatch(0);
 		}
 	}
