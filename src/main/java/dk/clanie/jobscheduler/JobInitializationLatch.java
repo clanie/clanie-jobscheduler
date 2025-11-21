@@ -20,33 +20,18 @@ package dk.clanie.jobscheduler;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
-
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Provides a coordination mechanism to ensure JobScheduler waits for JobInitializer
  * to complete its initial job scan before starting to execute jobs.
  */
-@Configuration
 @Slf4j
 public class JobInitializationLatch {
 
-	private final CountDownLatch latch;
 
-	/**
-	 * Creates a latch with count 1 if JobInitializer is present, 0 otherwise.
-	 */
-	public JobInitializationLatch(@Value("${jobScheduler.job.jobService.scanForJobs.enabled:false}" ) boolean jobScanningEnabled) {
-		if (jobScanningEnabled) {
-			log.debug("Job scanning is enabled - JobScheduler will wait for initial job scan to complete.");
-			this.latch = new CountDownLatch(1);
-		} else {
-			log.debug("Job scanning is not enabled - JobScheduler will start immediately.");
-			this.latch = new CountDownLatch(0);
-		}
-	}
+	private final CountDownLatch latch = new CountDownLatch(1);
+
 
 	/**
 	 * Called by JobInitializer when job scan is complete.
@@ -56,19 +41,24 @@ public class JobInitializationLatch {
 		log.debug("Job initialization latch released.");
 	}
 
+
 	/**
 	 * Called by JobScheduler to wait for JobInitializer to complete.
-	 * 
-	 * @throws InterruptedException if the wait is interrupted
 	 */
-	public void await() throws InterruptedException {
+	public void await() {
 		if (latch.getCount() > 0) {
 			log.debug("Waiting for job initialization to complete...");
-			latch.await(30, TimeUnit.SECONDS);
-			if (latch.getCount() > 0) {
-				log.error("Job initialization did not complete within timeout - proceeding anyway.");
+			try {
+				latch.await(30, TimeUnit.SECONDS);
+				if (latch.getCount() > 0) {
+					log.error("Job initialization did not complete within timeout - proceeding anyway.");
+				}
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				log.warn("Interrupted while waiting for job initialization to complete - proceeding anyway.");
 			}
 		}
 	}
+
 
 }

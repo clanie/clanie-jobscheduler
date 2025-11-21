@@ -20,17 +20,43 @@ package dk.clanie.jobscheduler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 /**
  * {@link EnableAutoConfiguration Auto-configuration} for clanie-jobscheduler.
  */
 @AutoConfiguration
-@ComponentScan
 @EnableMongoRepositories
-@ConditionalOnProperty(prefix = "jobScheduler", name = "enabled", havingValue = "true")
 public class JobSchedulerAutoConfiguration {
+
+
+	@Bean
+	JobService jobService() {
+		return new JobService();
+	}
+
+
+	@Bean
+	@ConditionalOnProperty(value = "jobScheduler.job.jobService.scanForJobs.enabled", havingValue = "true")
+	@ConditionalOnProperty(value = "jobScheduler.enabled", havingValue = "true")
+	JobInitializationLatch jobInitializationLatch() {
+		return new JobInitializationLatch();
+	}
+
+
+	@Bean
+	@ConditionalOnProperty(value = "jobScheduler.job.jobService.scanForJobs.enabled", havingValue = "true")
+	JobInitializer jobInitializer() {
+		return new JobInitializer();
+	}
+
+
+	@Bean
+	@ConditionalOnProperty(value = "jobScheduler.enabled", havingValue = "true")
+	JobScheduler jobScheduler() {
+		return new JobScheduler();
+	}
 
 
 }

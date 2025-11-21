@@ -17,26 +17,24 @@
  */
 package dk.clanie.jobscheduler;
 
+import static dk.clanie.core.Utils.opt;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
 /**
  * Processes @ScheduledJob annotated beans, creating Jobs for them if they are not already there.
  * 
  * Also enables / disables jobs according to configuration properties named {@code jobScheduler.job.<beanName>.<methodName>.enabled}.
  */
-@Component
-@ConditionalOnProperty(value = "jobScheduler.job.jobService.scanForJobs.enabled", havingValue = "true")
 public class JobInitializer {
 
 
 	@Autowired
 	private JobService jobService;
 
-	@Autowired
+	@Autowired(required = false)
 	private JobInitializationLatch initializationLatch;
 
 
@@ -45,7 +43,7 @@ public class JobInitializer {
 		try {
 			jobService.scanForJobs();
 		} finally {
-			initializationLatch.countDown();
+			opt(initializationLatch).ifPresent(JobInitializationLatch::countDown);
 		}
 	}
 

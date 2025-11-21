@@ -17,6 +17,8 @@
  */
 package dk.clanie.jobscheduler;
 
+import static dk.clanie.core.Utils.opt;
+
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -29,17 +31,13 @@ import java.util.concurrent.Semaphore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
-@Component
-@ConditionalOnProperty(value = "jobScheduler.enabled", havingValue = "true")
 @Slf4j
 public class JobScheduler {
 
@@ -50,7 +48,7 @@ public class JobScheduler {
 	@Autowired
 	private JobRepository jobRepository;
 
-	@Autowired
+	@Autowired(required = false)
 	private JobInitializationLatch initializationLatch;
 
 
@@ -89,7 +87,7 @@ public class JobScheduler {
 	@EventListener(ApplicationReadyEvent.class)
 	public void onApplicationReady() throws Exception {
 		executorService.submit(() -> {
-			initializationLatch.await();  // Wait for JobInitializer to complete (if present)
+			opt(initializationLatch).ifPresent(JobInitializationLatch::await); // Wait for JobInitializer to complete (if present)
 			log.info("Job scheduler started with max {} parallel jobs, polling every {}.", maxParallelJobs, pollInterval);
 			while (true) {
 				semaphore.acquire();  // Block if too many jobs are running
