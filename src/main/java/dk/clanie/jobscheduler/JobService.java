@@ -35,6 +35,7 @@ import java.util.UUID;
 
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
@@ -53,6 +54,10 @@ public class JobService {
 
 	@Autowired
 	private JobRepository jobRepository;
+
+
+	@Value("${spring.application.name}")
+	private String applicationName;
 
 
 	public List<Job> find(UUID tenantId, Pageable pageable, JobFilter filter) {
@@ -126,7 +131,7 @@ public class JobService {
 		}
 
 		// Create jobs for methods that do not already have one
-		Set<JobName> existingJobNames = jobRepository.findNames();
+		Set<JobName> existingJobNames = jobRepository.findNames(applicationName);
 		List<JobInput> inputForMissingJobs = filterList(jobInputs, jobMethod -> !existingJobNames.contains(jobMethod.name()));
 		inputForMissingJobs.forEach(jobInput -> {
 			Method method = jobInput.method;
@@ -148,7 +153,7 @@ public class JobService {
 			case null -> JobSchedule.manual();
 			default -> throw new IllegalStateException("Unexpected value: " + scheduleAnnotationUsed);
 			};
-			Job job = new Job(ADMIN_TENANT_ID, jobInput.name(), schedule);
+			Job job = new Job(ADMIN_TENANT_ID, applicationName, jobInput.name(), schedule);
 			log.info("Creating job: {}", job);
 			jobRepository.save(job);
 		});
@@ -156,7 +161,7 @@ public class JobService {
 		// Disable obsolete jobs, ie. jobs that are in the repository, but where there is no corresponding annotated method
 		Set<JobName> jobNamesForAnnotatedMethods = mapSet(jobInputs, JobInput::name);
 		Set<JobName> obsoleteJobNames = filterSet(existingJobNames, not(jobNamesForAnnotatedMethods::contains));
-		List<Job> obsoleteJobs = jobRepository.findConfigEnabledJobsByNameIn(obsoleteJobNames);
+		List<Job> obsoleteJobs = jobRepository.findConfigEnabledJobsByNameIn(applicationName, obsoleteJobNames);
 		obsoleteJobs.forEach(job -> {
 			log.info("Disabling obsolete job: {} because there is no longer a @ScheduledJob annotation matching it.", job);
 			job.setConfigEnabled(false);
@@ -170,13 +175,13 @@ public class JobService {
 			String property = "jobScheduler.job." + jobName.bean() + "." + jobName.method() + ".enabled";
 			(environment.getRequiredProperty(property, Boolean.class) ? jobNamesEnabledInConfig : jobNamesDisabledInConfig).add(jobName);
 		});
-		List<Job> jobsToDisable = jobRepository.findConfigEnabledJobsByNameIn(jobNamesDisabledInConfig);
+		List<Job> jobsToDisable = jobRepository.findConfigEnabledJobsByNameIn(applicationName, jobNamesDisabledInConfig);
 		jobsToDisable.forEach(job -> {
 			log.info("Disabling job: {} because it was disabled in configuration.", job.getName());
 			job.setConfigEnabled(false);
 		});
 		jobRepository.saveAll(jobsToDisable);
-		List<Job> jobsToEnable = jobRepository.findConfigDisabledJobsByNameIn(jobNamesEnabledInConfig);
+		List<Job> jobsToEnable = jobRepository.findConfigDisabledJobsByNameIn(applicationName, jobNamesEnabledInConfig);
 		jobsToEnable.forEach(job -> {
 			log.info("Enabling job: {} because it was enabled in configuration.", job.getName());
 			job.setConfigEnabled(true);

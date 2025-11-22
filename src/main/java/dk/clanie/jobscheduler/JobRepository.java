@@ -39,20 +39,20 @@ public interface JobRepository extends JobRepositoryCustom, MongoRepository<Job,
 	void registerExecuted(UUID tenantId, UUID jobId);
 
 
-	@Query(value = "{}", fields = "{ bean: '$name.bean', method: '$name.method', _id: 0 }")
-	Set<JobName> findNames();
+	@Query(value = "{ applicationName: ?0 }", fields = "{ bean: '$name.bean', method: '$name.method', _id: 0 }")
+	Set<JobName> findNames(String applicationName);
 
 
 	@Query(value = "{ name: {$in: ?0}}", fields = "{ bean: '$name.bean', method: '$name.method', _id: 0 }")
 	Set<JobName> findNamesByNameIn(Collection<JobName> names);
 
 
-	@Query(value = "{ name: { $in: ?0 }, configEnabled: { $eq: true } }")
-	List<Job> findConfigEnabledJobsByNameIn(Set<JobName> obsoleteJobNames);
+	@Query(value = "{ applicationName: ?0, name: { $in: ?1 }, configEnabled: { $eq: true } }")
+	List<Job> findConfigEnabledJobsByNameIn(String applicationName, Set<JobName> obsoleteJobNames);
 
 
-	@Query(value = "{ name: { $in: ?0 }, configEnabled: { $ne: true } }")
-	List<Job> findConfigDisabledJobsByNameIn(Set<JobName> jobNamesEnabledInConfig);
+	@Query(value = "{ applicationName: ?0, name: { $in: ?1 }, configEnabled: { $ne: true } }")
+	List<Job> findConfigDisabledJobsByNameIn(String applicationName, Set<JobName> jobNamesEnabledInConfig);
 
 
 	@Query(value = "{ tenantId: ?0, _id: ?1 }", delete = true)

@@ -43,12 +43,14 @@ import lombok.experimental.SuperBuilder;
 @Document(collection = Job.COLLECTION_NAME)
 @CompoundIndexes({
 	@CompoundIndex(def = "{nextExecution: 1}", unique = false, partialFilter = "{configEnabled: true, userEnabled: true, batchId: null}"),
+	@CompoundIndex(def = "{applicationName: 1, name: 1}", unique = true),
 })
 public class Job extends AbstractTenantEntity {
 
 	public static final String COLLECTION_NAME = "jobs";
 
-	@Indexed(unique = true)
+	private String applicationName;
+
 	private JobName name;
 
 	@NonNull
@@ -91,9 +93,10 @@ public class Job extends AbstractTenantEntity {
 	private ZonedDateTime lastFailedExecution;
 
 
-	public Job(UUID tenantId, JobName name, JobSchedule schedule) {
+	public Job(UUID tenantId, String applicationName, JobName name, JobSchedule schedule) {
 		setTenantId(tenantId);
 		setId( UUID.randomUUID());
+		this.applicationName = applicationName;
 		this.name = name;
 		this.schedule = schedule;
 		this.configEnabled = true;
