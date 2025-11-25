@@ -20,7 +20,7 @@ package dk.clanie.jobscheduler;
 import static dk.clanie.core.Utils.opt;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 
 /**
@@ -38,8 +38,8 @@ public class JobInitializer {
 	private JobInitializationLatch initializationLatch;
 
 
-	@EventListener
-	public void handleContextRefresh(ContextRefreshedEvent event) {
+	@EventListener(ApplicationReadyEvent.class)
+	public void onApplicationReady() {
 		try {
 			jobService.scanForJobs();
 		} finally {
