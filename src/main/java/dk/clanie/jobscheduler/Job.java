@@ -24,7 +24,6 @@ import java.util.UUID;
 
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.lang.NonNull;
 
@@ -42,7 +41,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor(access = PRIVATE) // For Spring / Mongo
 @Document(collection = Job.COLLECTION_NAME)
 @CompoundIndexes({
-	@CompoundIndex(def = "{nextExecution: 1}", unique = false, partialFilter = "{configEnabled: true, userEnabled: true, batchId: null}"),
+	@CompoundIndex(def = "{nextExecution: 1}", unique = false, partialFilter = "{configEnabled: true, userEnabled: true, jobExecutionId: null}"),
 	@CompoundIndex(def = "{applicationName: 1, name: 1}", unique = true),
 })
 public class Job extends AbstractTenantEntity {
@@ -86,7 +85,7 @@ public class Job extends AbstractTenantEntity {
 	 * 
 	 * It is removed again when the job execution is finished.
 	 */
-	private UUID batchId;
+	private UUID jobExecutionId;
 
 	private long executionCount;
 	private ZonedDateTime lastSuccessfullyExecuted;
@@ -105,7 +104,7 @@ public class Job extends AbstractTenantEntity {
 	}
 
 
-	// This is a workaround to prevent access to the builder inherited from TenantEntity
+	// This is a hack to prevent access to the builder inherited from TenantEntity
 	@SuppressWarnings("unused")
 	private static Job.JobBuilder<?, ?> builder() {
 		throw new UnsupportedOperationException("Builder is disabled for Job");
@@ -128,7 +127,7 @@ public class Job extends AbstractTenantEntity {
 
 	private void updateAfterExecution() {
 		poppedForExecution = null;
-		batchId = null;
+		jobExecutionId = null;
 		executionCount++;
 		nextExecution = schedule.calculateNextExecution(this);
 	}

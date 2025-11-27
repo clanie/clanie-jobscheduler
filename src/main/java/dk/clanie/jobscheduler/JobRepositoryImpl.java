@@ -87,10 +87,10 @@ public class JobRepositoryImpl implements JobRepositoryCustom {
 
 	@Override
 	public Optional<Job> popForExecution() {
-		UUID batchId = UUID.randomUUID();
+		UUID jobExecutionId = UUID.randomUUID();
 		Query query = nextToSchedule(criteria -> criteria.and("nextExecution").lte(ZonedDateTime.now()));
 		Job job = mongo.findAndModify(query, new Update()
-				.set("batchId", batchId)
+				.set("jobExecutionId", jobExecutionId)
 				.currentDate("poppedForExecution"),
 				new FindAndModifyOptions().returnNew(true),
 				Job.class);
@@ -109,7 +109,7 @@ public class JobRepositoryImpl implements JobRepositoryCustom {
 	private Query nextToSchedule(Consumer<Criteria> criteriaConsumer) {
 		Criteria criteria = where("configEnabled").is(true)
 				.and("userEnabled").is(true)
-				.and("batchId").isNull();
+				.and("jobExecutionId").isNull();
 		if (criteriaConsumer != null) criteriaConsumer.accept(criteria);
 		return query(criteria)
 				.with(Sort.by("nextExecution"))

@@ -64,7 +64,7 @@ public interface JobRepository extends JobRepositoryCustom, MongoRepository<Job,
 	int setUserEnabled(UUID tenantId, UUID id, boolean userEnabled);
 
 
-	@Query(value = "{ tenantId: ?0, _id: ?1, batchId: null }")
+	@Query(value = "{ tenantId: ?0, _id: ?1, jobExecutionId: null }")
 	@Update("{ $set: { nextExecution: ?2 } }")
 	int setNextExecution(UUID tenantId, UUID id, ZonedDateTime zonedDateTime);
 

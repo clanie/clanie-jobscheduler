@@ -93,7 +93,7 @@ public class JobService {
 	/**
 	 * Schedules the Job for execution at given time.
 	 * <p>
-	 * This will be ignored if the job is currently running (ie. if it has a batchId).
+	 * This will be ignored if the job is currently running (ie. if it has a jobExecutionId).
 	 * 
 	 * @return true if the Job was updated.
 	 */
