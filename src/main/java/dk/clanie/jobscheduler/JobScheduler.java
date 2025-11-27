@@ -48,6 +48,9 @@ public class JobScheduler {
 	@Autowired
 	private JobRepository jobRepository;
 
+	@Autowired
+	private JobExecutionService jobExecutionService;
+
 	@Autowired(required = false)
 	private JobInitializationLatch initializationLatch;
 
@@ -117,24 +120,13 @@ public class JobScheduler {
 	private void submit(Job job) {
 		String displayName = job.getName().displayName();
 		log.debug("Submitting job {}.", displayName);
-		BeanAndMethod beanAndMethod = methodsByJobName.computeIfAbsent(job.getName(), this::findBeanAndMethod);
 		executorService.submit(() -> {
-			JobMdc.applyAndRun(displayName, () -> {
 				try {
-					try {
-						beanAndMethod.invoke();
-						log.debug("Job {} completed successfully.", displayName);
-						job.registerCompletedSuccessfully();
-					} catch (Exception e) {
-						log.error("Job {} failed.", displayName, e);
-						job.registerFailed();
-					}
-					jobRepository.save(job);
+					jobExecutionService.execute(job);
 				} finally {
 					semaphore.release();  // Release permit when job is done
 				}
 			});
-		});
 	}
 
 

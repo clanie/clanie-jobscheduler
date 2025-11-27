@@ -20,6 +20,7 @@ package dk.clanie.jobscheduler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
@@ -56,6 +57,13 @@ public class JobSchedulerAutoConfiguration {
 	@ConditionalOnProperty(value = "jobScheduler.enabled", havingValue = "true")
 	JobScheduler jobScheduler() {
 		return new JobScheduler();
+	}
+
+
+	@Bean
+	JobExecutionService jobExecutionService(ApplicationContext applicationContext,
+			JobRepository jobRepository, JobExecutionRepository jobExecutionRepository) {
+		return new JobExecutionService(applicationContext, jobRepository, jobExecutionRepository);
 	}
 
 

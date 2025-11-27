@@ -1,0 +1,169 @@
+/*
+ * Copyright (C) 2025, Claus Nielsen, clausn999@gmail.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+package dk.clanie.jobscheduler;
+
+import static dk.clanie.core.Utils.stackTraceOf;
+
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class JobExecutionService {
+
+	private final ApplicationContext applicationContext;
+	private final JobRepository jobRepository;
+	private final JobExecutionRepository jobExecutionRepository;
+
+
+	private record BeanAndMethod(Object bean, Method method) {
+		public void invoke() {
+			try {
+				method.invoke(bean);
+			} catch (Exception e) {
+				throw new RuntimeException("Method invocation failed", e);
+			}
+		}
+	}
+	private final Map<JobName, BeanAndMethod> methodsByJobName = new ConcurrentHashMap<>();
+
+
+
+	/**
+	 * Executes a job with automatic tracking and MDC context.
+	 * <p>
+	 * This method applies the Job MDC context, runs the job, and automatically
+	 * records the execution result (success or failure) in the database.
+	 * 
+	 * @param job the Job to execute
+	 */
+	public void execute(Job job) {
+		UUID jobExecutionId = UUID.randomUUID();
+		String displayName = job.getName().displayName();
+		JobMdc.applyAndRun(jobExecutionId, displayName, () -> {
+			BeanAndMethod beanAndMethod = methodsByJobName.computeIfAbsent(job.getName(), this::findBeanAndMethod);
+			try {
+				beanAndMethod.invoke();
+				log.debug("Job {} completed successfully.", displayName);
+				job.registerCompletedSuccessfully();
+				recordSuccess(jobExecutionId, job);
+			} catch (Exception e) {
+				log.error("Job {} failed.", displayName, e);
+				job.registerFailed();
+				recordFailure(jobExecutionId, job, stackTraceOf(e));
+			}
+			jobRepository.save(job);
+
+		});
+	}
+
+
+	/**
+	 * Records a successful job execution.
+	 */
+	private JobExecution recordSuccess(UUID jobExecutionId, Job job) {
+		JobExecution execution = JobExecution.of(jobExecutionId, job, true, null);
+		return jobExecutionRepository.save(execution);
+	}
+
+
+	/**
+	 * Records a failed job execution.
+	 */
+	private JobExecution recordFailure(UUID jobExecutionId, Job job, String stackTrace) {
+		JobExecution execution = JobExecution.of(jobExecutionId, job, false, stackTrace);
+		return jobExecutionRepository.save(execution);
+	}
+
+
+	/**
+	 * Finds job executions for a specific job.
+	 * 
+	 * @param tenantId the tenant ID
+	 * @param jobId the ID of the job
+	 * @param pageable pagination information
+	 * @return list of job executions
+	 */
+	public List<JobExecution> findByJobId(UUID tenantId, UUID jobId, Pageable pageable) {
+		return jobExecutionRepository.findByJobId(tenantId, jobId, pageable);
+	}
+
+
+	/**
+	 * Finds a specific job execution by its execution ID.
+	 * 
+	 * @param tenantId the tenant ID
+	 * @param jobExecutionId the execution ID
+	 * @return optional containing the job execution if found
+	 */
+	public Optional<JobExecution> findByJobExecutionId(UUID tenantId, UUID jobExecutionId) {
+		return jobExecutionRepository.findByJobExecutionId(tenantId, jobExecutionId);
+	}
+
+
+	/**
+	 * Finds all job executions for a tenant.
+	 * 
+	 * @param tenantId the tenant ID
+	 * @param pageable pagination information
+	 * @return page of job executions
+	 */
+	public Page<JobExecution> findByTenantId(UUID tenantId, Pageable pageable) {
+		return jobExecutionRepository.findByTenantId(tenantId, pageable);
+	}
+
+
+	/**
+	 * Finds job executions filtered by success status.
+	 * 
+	 * @param tenantId the tenant ID
+	 * @param success whether to find successful or failed executions
+	 * @param pageable pagination information
+	 * @return page of job executions
+	 */
+	public Page<JobExecution> findBySuccess(UUID tenantId, boolean success, Pageable pageable) {
+		return jobExecutionRepository.findByTenantIdAndSuccess(tenantId, success, pageable);
+	}
+
+
+	private BeanAndMethod findBeanAndMethod(JobName jobName) {
+		try {
+			Object bean = applicationContext.getBean(jobName.bean());
+			Class<?> clazz = bean.getClass();
+			Method method = clazz.getMethod(jobName.method());
+			return new BeanAndMethod(bean, method);
+		} catch (NoSuchMethodException | SecurityException e) {
+			throw new RuntimeException("Method not found", e);
+		}
+	}
+
+
+}

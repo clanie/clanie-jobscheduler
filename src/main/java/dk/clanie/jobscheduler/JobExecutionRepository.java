@@ -17,35 +17,27 @@
  */
 package dk.clanie.jobscheduler;
 
-import static dk.clanie.core.Utils.asString;
-
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
-import org.slf4j.MDC;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 
-import lombok.RequiredArgsConstructor;
+public interface JobExecutionRepository extends MongoRepository<JobExecution, UUID> {
 
-@RequiredArgsConstructor
-enum JobMdc {
+	@Query("{ tenantId: ?0, jobId: ?1 }")
+	List<JobExecution> findByJobId(UUID tenantId, UUID jobId, Pageable pageable);
 
+	@Query("{ tenantId: ?0, jobExecutionId: ?1 }")
+	Optional<JobExecution> findByJobExecutionId(UUID tenantId, UUID jobExecutionId);
 
-	JOB_EXECUTION_ID("jobExecutionId"),
-	JOB_NAME("jobName");
+	@Query("{ tenantId: ?0 }")
+	Page<JobExecution> findByTenantId(UUID tenantId, Pageable pageable);
 
-
-	private final String mdcKey;
-
-
-	static void applyAndRun(UUID jobExecutionId, String jobName, Runnable runnable) {
-		try {
-			MDC.put(JOB_EXECUTION_ID.mdcKey, asString(jobExecutionId));
-			MDC.put(JOB_NAME.mdcKey, jobName);
-			runnable.run();
-		} finally {
-			MDC.remove(JOB_EXECUTION_ID.mdcKey);
-			MDC.remove(JOB_NAME.mdcKey);
-		}
-	}
-
+	@Query("{ tenantId: ?0, success: ?1 }")
+	Page<JobExecution> findByTenantIdAndSuccess(UUID tenantId, boolean success, Pageable pageable);
 
 }
