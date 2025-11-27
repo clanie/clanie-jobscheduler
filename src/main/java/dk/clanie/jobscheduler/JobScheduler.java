@@ -19,11 +19,8 @@ package dk.clanie.jobscheduler;
 
 import static dk.clanie.core.Utils.opt;
 
-import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -68,18 +65,6 @@ public class JobScheduler {
 	private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 	private Semaphore semaphore;
 	
-
-	private record BeanAndMethod(Object bean, Method method) {
-		public void invoke() {
-			try {
-				method.invoke(bean);
-			} catch (Exception e) {
-				throw new RuntimeException("Method invocation failed", e);
-			}
-		}
-	}
-	private final Map<JobName, BeanAndMethod> methodsByJobName = new ConcurrentHashMap<>();
-
 
 	@PostConstruct
 	public void init() {
@@ -146,18 +131,6 @@ public class JobScheduler {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			throw new RuntimeException("Job scheduler interrupted", e);
-		}
-	}
-
-
-	private BeanAndMethod findBeanAndMethod(JobName jobName) {
-		try {
-			Object bean = applicationContext.getBean(jobName.bean());
-			Class<?> clazz = bean.getClass();
-			Method method = clazz.getMethod(jobName.method());
-			return new BeanAndMethod(bean, method);
-		} catch (NoSuchMethodException | SecurityException e) {
-			throw new RuntimeException("Method not found", e);
 		}
 	}
 
