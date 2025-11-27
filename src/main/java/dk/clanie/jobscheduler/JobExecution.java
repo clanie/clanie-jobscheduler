@@ -72,11 +72,22 @@ public class JobExecution extends AbstractTenantEntity {
 		this.stackTrace = stackTrace;
 	}
 
-
-	public static JobExecution of(UUID jobExecutionId, Job job, boolean success, String stackTrace) {
+	/**
+	 * Creates a JobExecution instance from a Job and execution result.
+	 * <p>
+	 * The JobExecution will inherit the tenant ID from the job, and use the job's
+	 * jobExecutionId as its own ID, so it is important that this is called before
+	 * the jobExecutionId is reset on the Job.
+	 * 
+	 * @param job the job that was executed
+	 * @param success whether the job execution was successful
+	 * @param stackTrace optional error message or stack trace if the job failed
+	 * @return a new JobExecution instance
+	 */
+	public static JobExecution of(Job job, boolean success, String stackTrace) {
 		return new JobExecution(
 				job.getTenantId(),
-				jobExecutionId,
+				job.getJobExecutionId(),
 				job.getId(),
 				success,
 				stackTrace

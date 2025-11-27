@@ -66,41 +66,22 @@ public class JobExecutionService {
 	 * @param job the Job to execute
 	 */
 	public void execute(Job job) {
-		UUID jobExecutionId = UUID.randomUUID();
+		UUID jobExecutionId = job.getJobExecutionId();
 		String displayName = job.getName().displayName();
 		JobMdc.applyAndRun(jobExecutionId, displayName, () -> {
 			BeanAndMethod beanAndMethod = methodsByJobName.computeIfAbsent(job.getName(), this::findBeanAndMethod);
 			try {
 				beanAndMethod.invoke();
 				log.debug("Job {} completed successfully.", displayName);
-				job.registerCompletedSuccessfully();
-				recordSuccess(jobExecutionId, job);
+				jobExecutionRepository.save(JobExecution.of(job, true, null)); // Record success while job still has jobExecutionId
+				job.registerCompletedSuccessfully(); // Clears jobExecutionId
 			} catch (Exception e) {
 				log.error("Job {} failed.", displayName, e);
-				job.registerFailed();
-				recordFailure(jobExecutionId, job, stackTraceOf(e));
+				jobExecutionRepository.save(JobExecution.of(job, false, stackTraceOf(e))); // Record failure while job still has jobExecutionId
+				job.registerFailed(); // Clears jobExecutionId
 			}
 			jobRepository.save(job);
-
 		});
-	}
-
-
-	/**
-	 * Records a successful job execution.
-	 */
-	private JobExecution recordSuccess(UUID jobExecutionId, Job job) {
-		JobExecution execution = JobExecution.of(jobExecutionId, job, true, null);
-		return jobExecutionRepository.save(execution);
-	}
-
-
-	/**
-	 * Records a failed job execution.
-	 */
-	private JobExecution recordFailure(UUID jobExecutionId, Job job, String stackTrace) {
-		JobExecution execution = JobExecution.of(jobExecutionId, job, false, stackTrace);
-		return jobExecutionRepository.save(execution);
 	}
 
 
