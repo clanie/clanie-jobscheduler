@@ -25,4 +25,4 @@ so if you need the scheduling changed you must either:
 1. then scan for jobs again by restarting the application or manually scheduling a rescan.
 
 The annotation-scanning can be disabled by setting configuration property
-`portfolio.jobScheduler.job.jobService.scanForJobs.enabled: false`.
+`jobScheduler.job.jobService.scanForJobs.enabled: false`.
