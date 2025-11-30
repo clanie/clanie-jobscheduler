@@ -66,10 +66,10 @@ public class JobScheduler {
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void onApplicationReady() throws Exception {
-		Semaphore semaphore = new Semaphore(maxParallelJobs);
 		executorService.submit(() -> {
 			opt(initializationLatch).ifPresent(JobInitializationLatch::await); // Wait for JobInitializer to complete (if present)
 			log.info("Job scheduler started with max {} parallel jobs, polling every {}.", maxParallelJobs, pollInterval);
+			Semaphore semaphore = new Semaphore(maxParallelJobs);
 			while (true) {
 				semaphore.acquire();  // Block if too many jobs are running
 				try {
