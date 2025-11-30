@@ -18,5 +18,10 @@
     "name": "jobScheduler.exitWhenIdle",
     "type": "java.lang.Boolean",
     "description": "If true, the application will exit when there are no more jobs to execute."
+  },
+  {
+    "name": "jobScheduler.jobsEnabled",
+    "type": "java.util.Map<java.lang.String,java.lang.Boolean>",
+    "description": "Enables/disables individual scheduled jobs. Names are in the form <beanName>_<methodName>."
   }
 ]}
