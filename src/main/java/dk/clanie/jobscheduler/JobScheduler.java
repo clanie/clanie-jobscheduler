@@ -32,7 +32,6 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -63,17 +62,11 @@ public class JobScheduler {
 
 
 	private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
-	private Semaphore semaphore;
-	
-
-	@PostConstruct
-	public void init() {
-		this.semaphore = new Semaphore(maxParallelJobs);
-	}
 
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void onApplicationReady() throws Exception {
+		Semaphore semaphore = new Semaphore(maxParallelJobs);
 		executorService.submit(() -> {
 			opt(initializationLatch).ifPresent(JobInitializationLatch::await); // Wait for JobInitializer to complete (if present)
 			log.info("Job scheduler started with max {} parallel jobs, polling every {}.", maxParallelJobs, pollInterval);
@@ -82,10 +75,10 @@ public class JobScheduler {
 				try {
 					jobRepository.popForExecution().ifPresentOrElse(
 							job -> {
-								submit(job); // This will release a permit when done
+								submit(job, semaphore); // This will release a permit when done
 							},
 							() -> {
- 								semaphore.release();  // No job was found - release permit
+								semaphore.release();  // No job was found - release permit
 								if (exitWhenIdle && semaphore.availablePermits() == maxParallelJobs) {
 									// Ask Spring Boot to shutdown; this will cause the JVM to exit with the given code.
 									SpringApplication.exit(applicationContext, () -> 0);
@@ -102,16 +95,16 @@ public class JobScheduler {
 	}
 
 
-	private void submit(Job job) {
+	private void submit(Job job, Semaphore semaphore) {
 		String displayName = job.getName().displayName();
 		log.debug("Submitting job {}.", displayName);
 		executorService.submit(() -> {
-				try {
-					jobExecutionService.execute(job);
-				} finally {
-					semaphore.release();  // Release permit when job is done
-				}
-			});
+			try {
+				jobExecutionService.execute(job);
+			} finally {
+				semaphore.release();  // Release permit when job is done
+			}
+		});
 	}
 
 
