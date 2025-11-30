@@ -172,7 +172,7 @@ public class JobService {
 		Set<JobName> jobNamesEnabledInConfig = new HashSet<>();
 		Set<JobName> jobNamesDisabledInConfig = new HashSet<>();
 		jobNamesForAnnotatedMethods.forEach(jobName -> {
-			String property = "jobScheduler.job." + jobName.bean() + "." + jobName.method() + ".enabled";
+			String property = "jobScheduler.jobsEnabled." + jobName.bean() + "-" + jobName.method();
 			(environment.getRequiredProperty(property, Boolean.class) ? jobNamesEnabledInConfig : jobNamesDisabledInConfig).add(jobName);
 		});
 		List<Job> jobsToDisable = jobRepository.findConfigEnabledJobsByNameIn(applicationName, jobNamesDisabledInConfig);

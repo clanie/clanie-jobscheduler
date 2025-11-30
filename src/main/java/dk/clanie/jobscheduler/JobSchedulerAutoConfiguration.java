@@ -39,7 +39,7 @@ public class JobSchedulerAutoConfiguration {
 
 
 	@Bean
-	@ConditionalOnProperty(value = "jobScheduler.job.jobService.scanForJobs.enabled", havingValue = "true")
+	@ConditionalOnProperty(value = "jobScheduler.jobsEnabled.jobService-scanForJobs", havingValue = "true")
 	@ConditionalOnProperty(value = "jobScheduler.enabled", havingValue = "true")
 	JobInitializationLatch jobInitializationLatch() {
 		return new JobInitializationLatch();
@@ -47,7 +47,7 @@ public class JobSchedulerAutoConfiguration {
 
 
 	@Bean
-	@ConditionalOnProperty(value = "jobScheduler.job.jobService.scanForJobs.enabled", havingValue = "true")
+	@ConditionalOnProperty(value = "jobScheduler.jobsEnabled.jobService-scanForJobs", havingValue = "true")
 	JobInitializer jobInitializer() {
 		return new JobInitializer();
 	}

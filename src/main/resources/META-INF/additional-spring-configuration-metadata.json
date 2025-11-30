@@ -22,6 +22,6 @@
   {
     "name": "jobScheduler.jobsEnabled",
     "type": "java.util.Map<java.lang.String,java.lang.Boolean>",
-    "description": "Enables/disables individual scheduled jobs. Names are in the form <beanName>_<methodName>."
+    "description": "Enables/disables individual scheduled jobs. Names are in the form <beanName>-<methodName>."
   }
 ]}
