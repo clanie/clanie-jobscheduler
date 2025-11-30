@@ -81,6 +81,7 @@ public class JobScheduler {
 								semaphore.release();  // No job was found - release permit
 								if (exitWhenIdle && semaphore.availablePermits() == maxParallelJobs) {
 									// Ask Spring Boot to shutdown; this will cause the JVM to exit with the given code.
+									log.info("No jobs found and exitWhenIdle is set - shutting down.");
 									SpringApplication.exit(applicationContext, () -> 0);
 								} else {
 									sleep();
