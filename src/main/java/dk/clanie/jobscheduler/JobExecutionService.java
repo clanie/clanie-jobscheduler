@@ -19,6 +19,7 @@ package dk.clanie.jobscheduler;
 
 import static dk.clanie.core.Utils.stackTraceOf;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
@@ -45,12 +46,8 @@ public class JobExecutionService {
 
 
 	private record BeanAndMethod(Object bean, Method method) {
-		public void invoke() {
-			try {
-				method.invoke(bean);
-			} catch (Exception e) {
-				throw new RuntimeException("Method invocation failed", e);
-			}
+		public void invoke() throws IllegalAccessException, InvocationTargetException {
+			method.invoke(bean);
 		}
 	}
 	private final Map<JobName, BeanAndMethod> methodsByJobName = new ConcurrentHashMap<>();
