@@ -25,7 +25,7 @@ import java.util.UUID;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 
 import dk.clanie.mongo.entity.AbstractTenantEntity;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
