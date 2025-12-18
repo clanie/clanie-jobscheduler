@@ -24,6 +24,7 @@ import java.time.ZonedDateTime;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -70,26 +71,34 @@ public class JobScheduler {
 			opt(initializationLatch).ifPresent(JobInitializationLatch::await); // Wait for JobInitializer to complete (if present)
 			log.info("Job scheduler started with max {} parallel jobs, polling every {}.", maxParallelJobs, pollInterval);
 			Semaphore semaphore = new Semaphore(maxParallelJobs);
-			while (true) {
-				semaphore.acquire();  // Block if too many jobs are running
+			AtomicBoolean stopping = new AtomicBoolean(false);
+			while (!stopping.get()) {
 				try {
-					jobRepository.popForExecution().ifPresentOrElse(
-							job -> {
-								submit(job, semaphore); // This will release a permit when done
-							},
-							() -> {
-								semaphore.release();  // No job was found - release permit
-								if (exitWhenIdle && semaphore.availablePermits() == maxParallelJobs) {
-									// Ask Spring Boot to shutdown; this will cause the JVM to exit with the given code.
-									log.info("No jobs found and exitWhenIdle is set - shutting down.");
-									SpringApplication.exit(applicationContext, () -> 0);
-								} else {
-									sleep();
-								}
-							});
-				} catch (Exception e) {
-					log.error("Job scheduler failed.", e);
-					Thread.sleep(Duration.ofMinutes(10).toMillis());
+					semaphore.acquire();
+					try {
+						jobRepository.popForExecution().ifPresentOrElse(
+								job -> {
+									submit(job, semaphore); // This will release a permit when done
+								},
+								() -> {
+									semaphore.release();  // No job was found - release permit
+									if (exitWhenIdle && semaphore.availablePermits() == maxParallelJobs) {
+										// Ask Spring Boot to shutdown; this will cause the JVM to exit with the given code.
+										log.info("No jobs found and exitWhenIdle is set - shutting down.");
+										SpringApplication.exit(applicationContext, () -> 0);
+										stopping.set(true);
+									} else {
+										sleep();
+									}
+								});
+					} catch (Exception e) {
+						log.error("Job scheduler failed.", e);
+						Thread.sleep(Duration.ofMinutes(10).toMillis());
+					}
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					log.info("Job scheduler interrupted - stopping.");
+					stopping.set(true);
 				}
 			}
 		});
