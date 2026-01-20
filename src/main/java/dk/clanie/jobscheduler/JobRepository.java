@@ -69,4 +69,9 @@ public interface JobRepository extends JobRepositoryCustom, MongoRepository<Job,
 	int setNextExecution(UUID tenantId, UUID id, ZonedDateTime zonedDateTime);
 
 
+	@Query(value = "{ tenantId: ?0, _id: ?1 }")
+	@Update("{ $unset: { poppedForExecution: '', jobExecutionId: '' } }")
+	int clearRunningStatus(UUID tenantId, UUID id);
+
+
 }

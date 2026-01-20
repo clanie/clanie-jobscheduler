@@ -103,6 +103,16 @@ public class JobService {
 
 
 	/**
+	 * Clears the running status of a Job by removing poppedForExecution and jobExecutionId.
+	 * 
+	 * @return true if the Job was updated.
+	 */
+	public boolean clearRunningStatus(UUID tenantId, UUID id) {
+		return jobRepository.clearRunningStatus(tenantId, id) == 1;
+	}
+
+
+	/**
 	 * Scans for @ScheduledJob annotated bean methods and creates Jobs for them if they do not already have one.
 	 */
 	@ScheduledJob()
