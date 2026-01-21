@@ -52,7 +52,6 @@ import lombok.ToString;
 	@JsonSubTypes.Type(value = Manual.class, name = "manual")
 })
 @Getter
-@NoArgsConstructor(access = PRIVATE) // For Spring / MongoDB
 public abstract sealed class JobSchedule permits Cron, Delay, Rate, Manual {
 
 
