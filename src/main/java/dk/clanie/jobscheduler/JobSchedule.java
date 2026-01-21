@@ -22,13 +22,14 @@ import static lombok.AccessLevel.PRIVATE;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
+import org.springframework.data.annotation.TypeAlias;
+import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.scheduling.support.CronExpression;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 
 import dk.clanie.jobscheduler.JobSchedule.Cron;
 import dk.clanie.jobscheduler.JobSchedule.Delay;
@@ -75,10 +76,11 @@ public abstract sealed class JobSchedule permits Cron, Delay, Rate, Manual {
 	 *
 	 * @see CronExpression#parse(String)
 	 */
-	@JsonTypeName("cron")
 	@Getter
 	@ToString
 	@NoArgsConstructor(access = PRIVATE) // For Spring / MongoDB
+	@Document
+	@TypeAlias("JobSchedule_Cron")
 	public static final class Cron extends JobSchedule {
 
 		private String cron;
@@ -101,10 +103,11 @@ public abstract sealed class JobSchedule permits Cron, Delay, Rate, Manual {
 	 * Schedules invocations with a fixed period between the end of the last invocation and the start
 	 * of the next.
 	 */
-	@JsonTypeName("delay")
 	@Getter
 	@ToString
 	@NoArgsConstructor(access = PRIVATE) // For Spring / MongoDB
+	@Document
+	@TypeAlias("JobSchedule_Delay")
 	public static final class Delay extends JobSchedule {
 
 		private Duration delay;
@@ -129,10 +132,11 @@ public abstract sealed class JobSchedule permits Cron, Delay, Rate, Manual {
 	 * Will not schedule multiple instances of a job to run in parallel, so invocations will be
 	 * skipped if jobs run for longer the the invocation interval (rate).
 	 */
-	@JsonTypeName("rate")
 	@Getter
 	@ToString
 	@NoArgsConstructor(access = PRIVATE) // For Spring / MongoDB
+	@Document
+	@TypeAlias("JobSchedule_Rate")
 	public static final class Rate extends JobSchedule {
 
 		private Duration rate;
@@ -167,9 +171,10 @@ public abstract sealed class JobSchedule permits Cron, Delay, Rate, Manual {
 	/**
 	 * Manual scheduling.
 	 */
-	@JsonTypeName("manual")
 	@Getter
 	@ToString
+	@Document
+	@TypeAlias("JobSchedule_Manual")
 	public static final class Manual extends JobSchedule {
 
 		@JsonCreator

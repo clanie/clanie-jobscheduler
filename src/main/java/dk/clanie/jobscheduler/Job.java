@@ -22,10 +22,11 @@ import static lombok.AccessLevel.PRIVATE;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
+import org.jspecify.annotations.NonNull;
+import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.jspecify.annotations.NonNull;
 
 import dk.clanie.mongo.entity.AbstractTenantEntity;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -40,6 +41,7 @@ import lombok.experimental.SuperBuilder;
 @SuppressFBWarnings(value = "NP_NONNULL_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR", justification = "factory method initializes fields - default ctor is only for Spring / Mongo")
 @NoArgsConstructor(access = PRIVATE) // For Spring / Mongo
 @Document(collection = Job.COLLECTION_NAME)
+@TypeAlias("Job")
 @CompoundIndexes({
 	@CompoundIndex(def = "{nextExecution: 1}", unique = false, partialFilter = "{configEnabled: true, userEnabled: true, jobExecutionId: null}"),
 	@CompoundIndex(def = "{applicationName: 1, name: 1}", unique = true),

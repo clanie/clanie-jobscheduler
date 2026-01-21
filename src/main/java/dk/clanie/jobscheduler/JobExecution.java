@@ -21,6 +21,7 @@ import static lombok.AccessLevel.PRIVATE;
 
 import java.util.UUID;
 
+import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -40,13 +41,14 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor(access = PRIVATE) // For Spring / Mongo
 @AllArgsConstructor
 @Document(collection = JobExecution.COLLECTION_NAME)
+@TypeAlias("JobExecution")
 @CompoundIndexes({
 	@CompoundIndex(def = "{jobId: 1, createdDate: -1}"),
 	@CompoundIndex(def = "{createdDate: -1}"),
 })
 public class JobExecution extends AbstractTenantEntity {
 
-	public static final String COLLECTION_NAME = "jobExecutions";
+	public static final String COLLECTION_NAME = "job-executions";
 
 	/**
 	 * The id of the Job that was executed.
