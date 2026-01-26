@@ -17,11 +17,14 @@
  */
 package dk.clanie.jobscheduler;
 
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 /**
@@ -29,7 +32,21 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  */
 @AutoConfiguration
 @EnableMongoRepositories
-public class JobSchedulerAutoConfiguration {
+public class JobSchedulerAutoConfiguration implements InitializingBean {
+
+	@Autowired
+	private MongoMappingContext mappingContext;
+
+
+	@Override
+	public void afterPropertiesSet() throws Exception {
+		// Force initialization of JobSchedule type mappings so Spring Data MongoDB
+		// can properly map the _class field values to concrete types
+		mappingContext.getPersistentEntity(JobSchedule.Cron.class);
+		mappingContext.getPersistentEntity(JobSchedule.Delay.class);
+		mappingContext.getPersistentEntity(JobSchedule.Rate.class);
+		mappingContext.getPersistentEntity(JobSchedule.Manual.class);
+	}
 
 
 	@Bean

@@ -51,6 +51,8 @@ import lombok.ToString;
 	@JsonSubTypes.Type(value = Rate.class, name = "rate"),
 	@JsonSubTypes.Type(value = Manual.class, name = "manual")
 })
+// Notice that sub-type classes are also listed in JobSchedulerAutoConfiguration
+// in order to get Spring to register the @TypeAlias mappings correctly.
 @Getter
 public abstract sealed class JobSchedule permits Cron, Delay, Rate, Manual {
 
