@@ -32,3 +32,4 @@ replay_pid*
 /.classpath
 /.factorypath
 /.project
+/.vaadin/
