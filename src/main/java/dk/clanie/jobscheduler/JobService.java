@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +78,14 @@ public class JobService {
 
 	public void delete(UUID tenantId, UUID jobId) {
 		jobRepository.deleteById(tenantId, jobId);
+	}
+
+
+	/**
+	 * Deletes multiple jobs by their IDs in a single operation.
+	 */
+	public void deleteByIdIn(UUID tenantId, Collection<UUID> jobIds) {
+		jobRepository.deleteByIdIn(tenantId, jobIds);
 	}
 
 

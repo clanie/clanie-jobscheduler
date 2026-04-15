@@ -59,6 +59,13 @@ public interface JobRepository extends JobRepositoryCustom, MongoRepository<Job,
 	void deleteById(UUID tenantId, UUID jobId);
 
 
+	/**
+	 * Deletes multiple jobs by tenant ID and a collection of job IDs in a single operation.
+	 */
+	@Query(value = "{ tenantId: ?0, _id: { $in: ?1 } }", delete = true)
+	void deleteByIdIn(UUID tenantId, Collection<UUID> jobIds);
+
+
 	@Query(value = "{ tenantId: ?0, _id: ?1 }")
 	@Update("{ $set: { userEnabled: ?2 } }")
 	int setUserEnabled(UUID tenantId, UUID id, boolean userEnabled);
