@@ -24,6 +24,7 @@ import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static org.springframework.data.mongodb.core.query.Query.query;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -78,17 +79,17 @@ public class JobRepositoryImpl implements JobRepositoryCustom {
 
 
 	@Override
-	public Optional<ZonedDateTime> findNextExecutionTime() {
-		Query query = nextToSchedule(null);
+	public Optional<ZonedDateTime> findNextExecutionTime(Collection<String> matchProfiles) {
+		Query query = nextToSchedule(matchProfiles, null);
 		query.fields().include("nextExecution");
 		return opt(mongo.findOne(query, Job.class)).map(Job::getNextExecution);
 	}
 
 
 	@Override
-	public Optional<Job> popForExecution() {
+	public Optional<Job> popForExecution(Collection<String> matchProfiles) {
 		UUID jobExecutionId = UUID.randomUUID();
-		Query query = nextToSchedule(criteria -> criteria.and("nextExecution").lte(ZonedDateTime.now()));
+		Query query = nextToSchedule(matchProfiles, criteria -> criteria.and("nextExecution").lte(ZonedDateTime.now()));
 		Job job = mongo.findAndModify(query, new Update()
 				.set("jobExecutionId", jobExecutionId)
 				.currentDate("poppedForExecution"),
@@ -102,14 +103,16 @@ public class JobRepositoryImpl implements JobRepositoryCustom {
 	 * Builds a query to select the Job that is the next to be scheduled.
 	 * <p>
 	 * There is a matching partial index defined on Job.
-	 * 
+	 *
+	 * @param matchProfiles profile values to match against the job's profile field
 	 * @param criteriaConsumer optional consumer to add additional criteria
 	 * @return the query
 	 */
-	private Query nextToSchedule(Consumer<Criteria> criteriaConsumer) {
+	private Query nextToSchedule(Collection<String> matchProfiles, Consumer<Criteria> criteriaConsumer) {
 		Criteria criteria = where("configEnabled").is(true)
 				.and("userEnabled").is(true)
-				.and("jobExecutionId").isNull();
+				.and("jobExecutionId").isNull()
+				.and("profile").in(matchProfiles);
 		if (criteriaConsumer != null) criteriaConsumer.accept(criteria);
 		return query(criteria)
 				.with(Sort.by("nextExecution"))

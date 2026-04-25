@@ -21,6 +21,8 @@ import static dk.clanie.core.Utils.opt;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -32,6 +34,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.env.Environment;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,6 +54,9 @@ public class JobScheduler {
 	@Autowired(required = false)
 	private JobInitializationLatch initializationLatch;
 
+	@Autowired
+	private Environment environment;
+
 
 	@Value(value = "${jobScheduler.pollInterval:PT1M}")
 	private Duration pollInterval;
@@ -61,22 +67,31 @@ public class JobScheduler {
 	@Value("${jobScheduler.exitWhenIdle:false}")
 	private boolean exitWhenIdle;
 
+	@Value("${jobScheduler.requireProfile:false}")
+	private boolean requireProfile;
+
 
 	private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
+
+	private Collection<String> matchProfiles;
 
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void onApplicationReady() throws Exception {
 		executorService.submit(() -> {
 			opt(initializationLatch).ifPresent(JobInitializationLatch::await); // Wait for JobInitializer to complete (if present)
-			log.info("Job scheduler started with max {} parallel jobs, polling every {}.", maxParallelJobs, pollInterval);
+			matchProfiles = requireProfile
+					? Arrays.asList(environment.getActiveProfiles())
+					: Arrays.asList(null, "");
+			log.info("Job scheduler started with max {} parallel jobs, polling every {}.{}", maxParallelJobs, pollInterval,
+					requireProfile ? " Require profile: matching " + matchProfiles : "");
 			Semaphore semaphore = new Semaphore(maxParallelJobs);
 			AtomicBoolean stopping = new AtomicBoolean(false);
 			while (!stopping.get()) {
 				try {
 					semaphore.acquire();
 					try {
-						jobRepository.popForExecution().ifPresentOrElse(
+						jobRepository.popForExecution(matchProfiles).ifPresentOrElse(
 								job -> {
 									submit(job, semaphore); // This will release a permit when done
 								},
@@ -119,7 +134,7 @@ public class JobScheduler {
 
 
 	private void sleep() {
-		Duration delay = jobRepository.findNextExecutionTime()
+		Duration delay = jobRepository.findNextExecutionTime(matchProfiles)
 				.map(nextExecutionTime -> {
 					Duration durationUntilNextPlannedExecution = Duration.between(ZonedDateTime.now(), nextExecutionTime);
 					log.trace("Duration until next currently planned Job execution is: {}.", durationUntilNextPlannedExecution);

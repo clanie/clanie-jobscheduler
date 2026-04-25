@@ -89,6 +89,14 @@ public class Job extends AbstractTenantEntity {
 	 */
 	private UUID jobExecutionId;
 
+	/**
+	 * Optional profile tag. When set, this job only runs if
+	 * {@code jobScheduler.requireProfile} is true and the profile
+	 * matches an active Spring profile.
+	 * When null/empty, the job runs only when requireProfile is false.
+	 */
+	private String profile;
+
 	private long executionCount;
 	private ZonedDateTime lastSuccessfullyExecuted;
 	private ZonedDateTime lastFailedExecution;

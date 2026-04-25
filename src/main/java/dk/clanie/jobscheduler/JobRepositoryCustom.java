@@ -18,6 +18,7 @@
 package dk.clanie.jobscheduler;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,22 +60,28 @@ public interface JobRepositoryCustom {
 
 
 	/**
-	 * Finds the next scheduled execution time among all enabled jobs.
-	 * 
+	 * Finds the next scheduled execution time among all enabled jobs
+	 * whose profile matches the given set.
+	 *
+	 * @param matchProfiles profile values to match — typically {@code [null, ""]} for
+	 *        production (profileless jobs only) or the active Spring profile names for dev
 	 * @return the next execution time, or empty if no jobs are scheduled
 	 */
-	Optional<ZonedDateTime> findNextExecutionTime();
+	Optional<ZonedDateTime> findNextExecutionTime(Collection<String> matchProfiles);
 
 
 	/**
-	 * Atomically retrieves and marks the next job ready for execution.
+	 * Atomically retrieves and marks the next job ready for execution,
+	 * filtering by profile.
 	 * <p>
 	 * This method finds the next enabled job that is due for execution (nextExecution &lt;= now)
-	 * and atomically sets its jobExecutionId and poppedForExecution timestamp.
-	 * 
+	 * and whose profile matches the given set, then atomically sets its jobExecutionId
+	 * and poppedForExecution timestamp.
+	 *
+	 * @param matchProfiles profile values to match
 	 * @return the job ready for execution, or empty if no job is due
 	 */
-	Optional<Job> popForExecution();
+	Optional<Job> popForExecution(Collection<String> matchProfiles);
 
 
 }
