@@ -81,4 +81,14 @@ public interface JobRepository extends JobRepositoryCustom, MongoRepository<Job,
 	int clearRunningStatus(UUID tenantId, UUID id);
 
 
+	@Query(value = "{ tenantId: ?0, _id: ?1 }")
+	@Update("{ $set: { profile: ?2 } }")
+	int setProfile(UUID tenantId, UUID id, String profile);
+
+
+	@Query(value = "{ tenantId: ?0, _id: ?1 }")
+	@Update("{ $unset: { profile: '' } }")
+	int clearProfile(UUID tenantId, UUID id);
+
+
 }

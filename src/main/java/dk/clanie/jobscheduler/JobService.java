@@ -113,11 +113,31 @@ public class JobService {
 
 	/**
 	 * Clears the running status of a Job by removing poppedForExecution and jobExecutionId.
-	 * 
+	 *
 	 * @return true if the Job was updated.
 	 */
 	public boolean clearRunningStatus(UUID tenantId, UUID id) {
 		return jobRepository.clearRunningStatus(tenantId, id) == 1;
+	}
+
+
+	/**
+	 * Sets the Spring profile of a Job.
+	 *
+	 * @return true if the Job was updated.
+	 */
+	public boolean setProfile(UUID tenantId, UUID id, String profile) {
+		return jobRepository.setProfile(tenantId, id, profile) == 1;
+	}
+
+
+	/**
+	 * Clears the Spring profile of a Job.
+	 *
+	 * @return true if the Job was updated.
+	 */
+	public boolean clearProfile(UUID tenantId, UUID id) {
+		return jobRepository.clearProfile(tenantId, id) == 1;
 	}
 
 
