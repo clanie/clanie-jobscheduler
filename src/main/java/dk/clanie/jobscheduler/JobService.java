@@ -28,6 +28,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -193,9 +194,25 @@ public class JobService {
 			default -> throw new IllegalStateException("Unexpected value: " + scheduleAnnotationUsed);
 			};
 			Job job = new Job(ADMIN_TENANT_ID, applicationName, jobInput.name(), schedule);
+			String maxFailureDuration = annotation.maxFailureDuration();
+			job.setMaxFailureDuration(maxFailureDuration.isEmpty() ? null : Duration.parse(maxFailureDuration));
 			log.info("Creating job: {}", job);
 			jobRepository.save(job);
 		});
+
+		// Always sync maxFailureDuration from annotation for existing jobs
+		List<JobInput> inputForExistingJobs = filterList(jobInputs, ji -> existingJobNames.contains(ji.name()));
+		if (!inputForExistingJobs.isEmpty()) {
+			Map<JobName, Duration> maxFailureDurationByName = new HashMap<>();
+			inputForExistingJobs.forEach(ji -> {
+				String val = ji.annotation().maxFailureDuration();
+				maxFailureDurationByName.put(ji.name(), val.isEmpty() ? null : Duration.parse(val));
+			});
+			Set<JobName> existingAnnotatedNames = mapSet(inputForExistingJobs, JobInput::name);
+			List<Job> existingJobs = jobRepository.findConfigEnabledJobsByNameIn(applicationName, existingAnnotatedNames);
+			existingJobs.forEach(job -> job.setMaxFailureDuration(maxFailureDurationByName.get(job.getName())));
+			jobRepository.saveAll(existingJobs);
+		}
 
 		// Disable obsolete jobs, ie. jobs that are in the repository, but where there is no corresponding annotated method
 		Set<JobName> jobNamesForAnnotatedMethods = mapSet(jobInputs, JobInput::name);

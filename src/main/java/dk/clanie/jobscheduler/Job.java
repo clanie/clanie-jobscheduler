@@ -19,6 +19,7 @@ package dk.clanie.jobscheduler;
 
 import static lombok.AccessLevel.PRIVATE;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
@@ -100,6 +101,7 @@ public class Job extends AbstractTenantEntity {
 	private long executionCount;
 	private ZonedDateTime lastSuccessfullyExecuted;
 	private ZonedDateTime lastFailedExecution;
+	private Duration maxFailureDuration;
 
 
 	public Job(UUID tenantId, String applicationName, JobName name, JobSchedule schedule) {
@@ -132,6 +134,13 @@ public class Job extends AbstractTenantEntity {
 	public void registerFailed() {
 		updateAfterExecution();
 		lastFailedExecution = ZonedDateTime.now();
+	}
+
+
+	public boolean shouldSuppressFailureLogging() {
+		if (maxFailureDuration == null) return false;
+		if (lastSuccessfullyExecuted == null) return false;
+		return lastSuccessfullyExecuted.isAfter(ZonedDateTime.now().minus(maxFailureDuration));
 	}
 
 

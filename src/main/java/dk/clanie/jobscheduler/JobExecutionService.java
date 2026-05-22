@@ -67,15 +67,23 @@ public class JobExecutionService {
 		String displayName = job.getName().displayName();
 		JobMdc.applyAndRun(jobExecutionId, displayName, () -> {
 			BeanAndMethod beanAndMethod = methodsByJobName.computeIfAbsent(job.getName(), this::findBeanAndMethod);
+			boolean suppress = job.shouldSuppressFailureLogging();
+			JobExecutionContext.set(suppress);
 			try {
 				beanAndMethod.invoke();
 				log.debug("Job {} completed successfully.", displayName);
 				jobExecutionRepository.save(JobExecution.of(job, true, null)); // Record success while job still has jobExecutionId
 				job.registerCompletedSuccessfully(); // Clears jobExecutionId
 			} catch (Exception e) {
-				log.error("Job {} failed.", displayName, e);
+				if (suppress) {
+					log.info("Job {} failed (within maxFailureDuration, not escalating yet).", displayName, e);
+				} else {
+					log.error("Job {} failed.", displayName, e);
+				}
 				jobExecutionRepository.save(JobExecution.of(job, false, stackTraceOf(e))); // Record failure while job still has jobExecutionId
 				job.registerFailed(); // Clears jobExecutionId
+			} finally {
+				JobExecutionContext.clear();
 			}
 			jobRepository.save(job);
 		});

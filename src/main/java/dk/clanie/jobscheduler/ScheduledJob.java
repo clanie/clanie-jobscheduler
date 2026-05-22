@@ -62,10 +62,19 @@ public @interface ScheduledJob {
 
 	/**
 	 * Execute the annotated method with a fixed period between invocations.
-	 * 
+	 *
 	 * Rate must be given as a ISO-8601 duration (PnDTnHnMnS).
 	 */
 	String rate() default "";
+
+
+	/**
+	 * How long the job may keep failing before the failure is escalated to ERROR level.
+	 * While the last successful execution is within this duration, failures are logged
+	 * at INFO level and do not trigger issue registration.
+	 * Must be an ISO-8601 duration (e.g. "P2D"). Empty (default) means always escalate.
+	 */
+	String maxFailureDuration() default "";
 
 
 }
