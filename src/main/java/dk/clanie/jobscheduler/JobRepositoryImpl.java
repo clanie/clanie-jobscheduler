@@ -99,6 +99,14 @@ public class JobRepositoryImpl implements JobRepositoryCustom {
 	}
 
 
+	@Override
+	public List<Job> findStaleJobs(ZonedDateTime poppedBefore) {
+		return mongo.find(
+				query(where("poppedForExecution").lt(poppedBefore)),
+				Job.class);
+	}
+
+
 	/**
 	 * Builds a query to select the Job that is the next to be scheduled.
 	 * <p>

@@ -21,6 +21,7 @@ import static dk.clanie.core.Utils.stackTraceOf;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,23 +70,28 @@ public class JobExecutionService {
 			BeanAndMethod beanAndMethod = methodsByJobName.computeIfAbsent(job.getName(), this::findBeanAndMethod);
 			boolean suppress = job.shouldSuppressFailureLogging();
 			JobExecutionContext.set(suppress);
+			boolean succeeded = false;
 			try {
 				beanAndMethod.invoke();
 				log.debug("Job {} completed successfully.", displayName);
-				jobExecutionRepository.save(JobExecution.of(job, true, null)); // Record success while job still has jobExecutionId
-				job.registerCompletedSuccessfully(); // Clears jobExecutionId
+				jobExecutionRepository.save(JobExecution.of(job, true, null));
+				succeeded = true;
 			} catch (Exception e) {
 				if (suppress) {
 					log.info("Job {} failed (within maxFailureDuration, not escalating yet).", displayName, e);
 				} else {
 					log.error("Job {} failed.", displayName, e);
 				}
-				jobExecutionRepository.save(JobExecution.of(job, false, stackTraceOf(e))); // Record failure while job still has jobExecutionId
-				job.registerFailed(); // Clears jobExecutionId
+				jobExecutionRepository.save(JobExecution.of(job, false, stackTraceOf(e)));
 			} finally {
 				JobExecutionContext.clear();
 			}
-			jobRepository.save(job);
+			ZonedDateTime nextExecution = job.getSchedule().calculateNextExecution(job);
+			if (succeeded) {
+				jobRepository.registerCompletedSuccessfully(job.getTenantId(), job.getId(), jobExecutionId, nextExecution, ZonedDateTime.now());
+			} else {
+				jobRepository.registerFailed(job.getTenantId(), job.getId(), jobExecutionId, nextExecution, ZonedDateTime.now());
+			}
 		});
 	}
 

@@ -61,6 +61,9 @@ public class JobService {
 	@Value("${spring.application.name}")
 	private String applicationName;
 
+	@Value("${jobScheduler.staleJobThreshold:PT2H}")
+	private Duration staleJobThreshold;
+
 
 	public List<Job> find(UUID tenantId, Pageable pageable, JobFilter filter) {
 		return jobRepository.find(tenantId, pageable, filter);
@@ -147,7 +150,7 @@ public class JobService {
 	 */
 	@ScheduledJob()
 	public void scanForJobs() {
-		
+
 		record JobInput (
 				JobName name,
 				Method method,
@@ -172,6 +175,7 @@ public class JobService {
 
 		// Create jobs for methods that do not already have one
 		Set<JobName> existingJobNames = jobRepository.findNames(applicationName);
+		Set<JobName> jobNamesForAnnotatedMethods = mapSet(jobInputs, JobInput::name);
 		List<JobInput> inputForMissingJobs = filterList(jobInputs, jobMethod -> !existingJobNames.contains(jobMethod.name()));
 		inputForMissingJobs.forEach(jobInput -> {
 			Method method = jobInput.method;
@@ -200,49 +204,63 @@ public class JobService {
 			jobRepository.save(job);
 		});
 
-		// Always sync maxFailureDuration from annotation for existing jobs
+		// Atomically sync maxFailureDuration from annotation for existing jobs
 		List<JobInput> inputForExistingJobs = filterList(jobInputs, ji -> existingJobNames.contains(ji.name()));
 		if (!inputForExistingJobs.isEmpty()) {
-			Map<JobName, Duration> maxFailureDurationByName = new HashMap<>();
+			Map<Duration, Set<JobName>> byDuration = new HashMap<>();
+			Set<JobName> namesToClearDuration = new HashSet<>();
 			inputForExistingJobs.forEach(ji -> {
 				String val = ji.annotation().maxFailureDuration();
-				maxFailureDurationByName.put(ji.name(), val.isEmpty() ? null : Duration.parse(val));
+				if (val.isEmpty()) {
+					namesToClearDuration.add(ji.name());
+				} else {
+					byDuration.computeIfAbsent(Duration.parse(val), _ -> new HashSet<>()).add(ji.name());
+				}
 			});
-			Set<JobName> existingAnnotatedNames = mapSet(inputForExistingJobs, JobInput::name);
-			List<Job> existingJobs = jobRepository.findConfigEnabledJobsByNameIn(applicationName, existingAnnotatedNames);
-			existingJobs.forEach(job -> job.setMaxFailureDuration(maxFailureDurationByName.get(job.getName())));
-			jobRepository.saveAll(existingJobs);
+			byDuration.forEach((duration, names) -> jobRepository.setMaxFailureDuration(applicationName, names, duration));
+			if (!namesToClearDuration.isEmpty()) {
+				jobRepository.clearMaxFailureDuration(applicationName, namesToClearDuration);
+			}
 		}
 
-		// Disable obsolete jobs, ie. jobs that are in the repository, but where there is no corresponding annotated method
-		Set<JobName> jobNamesForAnnotatedMethods = mapSet(jobInputs, JobInput::name);
+		// Atomically disable obsolete jobs (in repository but no matching @ScheduledJob annotation)
 		Set<JobName> obsoleteJobNames = filterSet(existingJobNames, not(jobNamesForAnnotatedMethods::contains));
-		List<Job> obsoleteJobs = jobRepository.findConfigEnabledJobsByNameIn(applicationName, obsoleteJobNames);
-		obsoleteJobs.forEach(job -> {
-			log.info("Disabling obsolete job: {} because there is no longer a @ScheduledJob annotation matching it.", job);
-			job.setConfigEnabled(false);
-		});
-		jobRepository.saveAll(obsoleteJobs);
+		if (!obsoleteJobNames.isEmpty()) {
+			log.info("Disabling {} obsolete job(s) with no matching @ScheduledJob annotation: {}.", obsoleteJobNames.size(), obsoleteJobNames);
+			jobRepository.setConfigEnabled(applicationName, obsoleteJobNames, false);
+		}
 
-		// Enable / disable jobs according to configuration properties
+		// Atomically enable/disable jobs per configuration properties
 		Set<JobName> jobNamesEnabledInConfig = new HashSet<>();
 		Set<JobName> jobNamesDisabledInConfig = new HashSet<>();
 		jobNamesForAnnotatedMethods.forEach(jobName -> {
 			String property = "jobScheduler.jobsEnabled." + jobName.bean() + "-" + jobName.method();
 			(environment.getRequiredProperty(property, Boolean.class) ? jobNamesEnabledInConfig : jobNamesDisabledInConfig).add(jobName);
 		});
-		List<Job> jobsToDisable = jobRepository.findConfigEnabledJobsByNameIn(applicationName, jobNamesDisabledInConfig);
-		jobsToDisable.forEach(job -> {
-			log.info("Disabling job: {} because it was disabled in configuration.", job.getName());
-			job.setConfigEnabled(false);
-		});
-		jobRepository.saveAll(jobsToDisable);
-		List<Job> jobsToEnable = jobRepository.findConfigDisabledJobsByNameIn(applicationName, jobNamesEnabledInConfig);
-		jobsToEnable.forEach(job -> {
-			log.info("Enabling job: {} because it was enabled in configuration.", job.getName());
-			job.setConfigEnabled(true);
-		});
-		jobRepository.saveAll(jobsToEnable);
+		if (!jobNamesDisabledInConfig.isEmpty()) {
+			log.info("Disabling {} job(s) per configuration: {}.", jobNamesDisabledInConfig.size(), jobNamesDisabledInConfig);
+			jobRepository.setConfigEnabled(applicationName, jobNamesDisabledInConfig, false);
+		}
+		if (!jobNamesEnabledInConfig.isEmpty()) {
+			log.info("Enabling {} job(s) per configuration: {}.", jobNamesEnabledInConfig.size(), jobNamesEnabledInConfig);
+			jobRepository.setConfigEnabled(applicationName, jobNamesEnabledInConfig, true);
+		}
+	}
+
+
+	/**
+	 * Clears running status of jobs stranded by a JVM crash or failed post-execution save.
+	 * Runs hourly; threshold is configurable via {@code jobScheduler.staleJobThreshold} (default 2h).
+	 */
+	@ScheduledJob(cron = "0 0 * * * *")
+	public void clearStaleJobs() {
+		ZonedDateTime threshold = ZonedDateTime.now().minus(staleJobThreshold);
+		List<Job> staleJobs = jobRepository.findStaleJobs(threshold);
+		if (!staleJobs.isEmpty()) {
+			staleJobs.forEach(job -> log.warn("Found stale job '{}' (poppedForExecution={}), clearing running status.",
+					job.getName().displayName(), job.getPoppedForExecution()));
+			jobRepository.clearStaleRunningStatus(threshold);
+		}
 	}
 
 

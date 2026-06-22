@@ -84,4 +84,11 @@ public interface JobRepositoryCustom {
 	Optional<Job> popForExecution(Collection<String> matchProfiles);
 
 
+	/**
+	 * Returns all jobs whose poppedForExecution is set and older than the given threshold.
+	 * These jobs are likely stranded due to a JVM crash or a failed post-execution save.
+	 */
+	List<Job> findStaleJobs(ZonedDateTime poppedBefore);
+
+
 }

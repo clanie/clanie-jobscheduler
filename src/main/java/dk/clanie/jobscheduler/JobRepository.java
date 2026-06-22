@@ -17,6 +17,7 @@
  */
 package dk.clanie.jobscheduler;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -89,6 +90,36 @@ public interface JobRepository extends JobRepositoryCustom, MongoRepository<Job,
 	@Query(value = "{ tenantId: ?0, _id: ?1 }")
 	@Update("{ $unset: { profile: '' } }")
 	int clearProfile(UUID tenantId, UUID id);
+
+
+	@Query("{ applicationName: ?0, name: { $in: ?1 } }")
+	@Update("{ $set: { configEnabled: ?2 } }")
+	int setConfigEnabled(String applicationName, Set<JobName> names, boolean value);
+
+
+	@Query("{ applicationName: ?0, name: { $in: ?1 } }")
+	@Update("{ $set: { maxFailureDuration: ?2 } }")
+	int setMaxFailureDuration(String applicationName, Set<JobName> names, Duration value);
+
+
+	@Query("{ applicationName: ?0, name: { $in: ?1 } }")
+	@Update("{ $unset: { maxFailureDuration: '' } }")
+	int clearMaxFailureDuration(String applicationName, Set<JobName> names);
+
+
+	@Query("{ poppedForExecution: { $lt: ?0 } }")
+	@Update("{ $unset: { jobExecutionId: '', poppedForExecution: '' } }")
+	int clearStaleRunningStatus(ZonedDateTime poppedBefore);
+
+
+	@Query("{ tenantId: ?0, _id: ?1, jobExecutionId: ?2 }")
+	@Update("{ $unset: { jobExecutionId: '', poppedForExecution: '' }, $inc: { executionCount: 1 }, $set: { nextExecution: ?3, lastSuccessfullyExecuted: ?4 } }")
+	int registerCompletedSuccessfully(UUID tenantId, UUID jobId, UUID executionId, ZonedDateTime nextExecution, ZonedDateTime completedAt);
+
+
+	@Query("{ tenantId: ?0, _id: ?1, jobExecutionId: ?2 }")
+	@Update("{ $unset: { jobExecutionId: '', poppedForExecution: '' }, $inc: { executionCount: 1 }, $set: { nextExecution: ?3, lastFailedExecution: ?4 } }")
+	int registerFailed(UUID tenantId, UUID jobId, UUID executionId, ZonedDateTime nextExecution, ZonedDateTime failedAt);
 
 
 }
