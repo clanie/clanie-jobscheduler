@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -90,25 +91,31 @@ public class JobScheduler {
 			while (!stopping.get()) {
 				try {
 					semaphore.acquire();
+					boolean permitReleased = false;
 					try {
-						jobRepository.popForExecution(matchProfiles).ifPresentOrElse(
-								job -> {
-									submit(job, semaphore); // This will release a permit when done
-								},
-								() -> {
-									semaphore.release();  // No job was found - release permit
-									if (exitWhenIdle && semaphore.availablePermits() == maxParallelJobs) {
-										// Ask Spring Boot to shutdown; this will cause the JVM to exit with the given code.
-										log.info("No jobs found and exitWhenIdle is set - shutting down.");
-										SpringApplication.exit(applicationContext, () -> 0);
-										stopping.set(true);
-									} else {
-										sleep();
-									}
-								});
+						Optional<Job> job = jobRepository.popForExecution(matchProfiles);
+						if (job.isPresent()) {
+							submit(job.get(), semaphore); // This will release a permit when done
+							permitReleased = true;
+						} else {
+							semaphore.release();  // No job was found - release permit
+							permitReleased = true;
+							if (exitWhenIdle && semaphore.availablePermits() == maxParallelJobs) {
+								// Ask Spring Boot to shutdown; this will cause the JVM to exit with the given code.
+								log.info("No jobs found and exitWhenIdle is set - shutting down.");
+								SpringApplication.exit(applicationContext, () -> 0);
+								stopping.set(true);
+							} else {
+								sleep();
+							}
+						}
 					} catch (Exception e) {
 						log.error("Job scheduler failed.", e);
 						Thread.sleep(Duration.ofMinutes(10).toMillis());
+					} finally {
+						// Neither path above took ownership of the permit (popForExecution or submit threw),
+						// so release it here - otherwise it would be leaked for the lifetime of the instance.
+						if (!permitReleased) semaphore.release();
 					}
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
