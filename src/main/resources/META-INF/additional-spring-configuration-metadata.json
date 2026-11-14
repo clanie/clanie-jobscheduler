@@ -20,6 +20,11 @@
     "description": "If true, the application will exit when there are no more jobs to execute."
   },
   {
+    "name": "jobScheduler.shutdownTimeout",
+    "type": "java.lang.String",
+    "description": "How long running Jobs are given to finish at shutdown, before they are interrupted, given as a Duration string. Default PT10S."
+  },
+  {
     "name": "jobScheduler.jobsEnabled",
     "type": "java.util.Map<java.lang.String,java.lang.Boolean>",
     "description": "Enables/disables individual scheduled jobs. Names are in the form <beanName>-<methodName>."

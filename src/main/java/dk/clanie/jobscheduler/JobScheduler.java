@@ -27,20 +27,34 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
 
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Polls Mongo for due {@link Job}s and runs them, at most {@code maxParallelJobs} at a time.
+ *
+ * <p>Shutdown happens in two steps, both before the Mongo client is closed. Polling stops as
+ * soon as the application context starts closing ({@link ContextClosedEvent}, published before
+ * any lifecycle bean is stopped), so the poll loop never reaches a Mongo client that is being
+ * torn down - which is what a blue-green swap used to report as an unhandled
+ * {@code ClientSessionException: state should be: open}. Jobs already running are then given
+ * until {@code jobScheduler.shutdownTimeout} to finish when this bean is destroyed; the Mongo
+ * beans it depends on are destroyed after it, so they are still open meanwhile.
+ */
 @Slf4j
-public class JobScheduler {
+public class JobScheduler implements DisposableBean {
 
 
 	@Autowired
@@ -71,15 +85,24 @@ public class JobScheduler {
 	@Value("${jobScheduler.requireProfile:false}")
 	private boolean requireProfile;
 
+	@Value("${jobScheduler.shutdownTimeout:PT10S}")
+	private Duration shutdownTimeout;
 
+
+	/** Runs the jobs. The poll loop has a thread of its own, so stopping it never waits for a job. */
 	private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
+
+	private volatile boolean stopping;
+
+	private volatile @Nullable Thread pollThread;
 
 	private Collection<String> matchProfiles;
 
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void onApplicationReady() throws Exception {
-		executorService.submit(() -> {
+		if (stopping) return;
+		pollThread = Thread.ofVirtual().name("job-scheduler").start(() -> {
 			opt(initializationLatch).ifPresent(JobInitializationLatch::await); // Wait for JobInitializer to complete (if present)
 			matchProfiles = requireProfile
 					? Arrays.asList(environment.getActiveProfiles())
@@ -87,8 +110,7 @@ public class JobScheduler {
 			log.info("Job scheduler started with max {} parallel jobs, polling every {}.{}", maxParallelJobs, pollInterval,
 					requireProfile ? " Require profile: matching " + matchProfiles : "");
 			Semaphore semaphore = new Semaphore(maxParallelJobs);
-			AtomicBoolean stopping = new AtomicBoolean(false);
-			while (!stopping.get()) {
+			while (!stopping) {
 				try {
 					semaphore.acquire();
 					boolean permitReleased = false;
@@ -103,15 +125,20 @@ public class JobScheduler {
 							if (exitWhenIdle && semaphore.availablePermits() == maxParallelJobs) {
 								// Ask Spring Boot to shutdown; this will cause the JVM to exit with the given code.
 								log.info("No jobs found and exitWhenIdle is set - shutting down.");
+								stopping = true;
 								SpringApplication.exit(applicationContext, () -> 0);
-								stopping.set(true);
 							} else {
 								sleep();
 							}
 						}
 					} catch (Exception e) {
-						log.error("Job scheduler failed.", e);
-						Thread.sleep(Duration.ofMinutes(10).toMillis());
+						if (stopping) {
+							// The context is closing: whatever failed was torn down under us. Not an error.
+							log.debug("Job scheduler poll failed while stopping.", e);
+						} else {
+							log.error("Job scheduler failed.", e);
+							Thread.sleep(Duration.ofMinutes(10).toMillis());
+						}
 					} finally {
 						// Neither path above took ownership of the permit (popForExecution or submit threw),
 						// so release it here - otherwise it would be leaked for the lifetime of the instance.
@@ -120,10 +147,50 @@ public class JobScheduler {
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 					log.info("Job scheduler interrupted - stopping.");
-					stopping.set(true);
+					stopping = true;
 				}
 			}
 		});
+	}
+
+
+	/**
+	 * Stops polling at the very start of shutdown, while Mongo is still open.
+	 */
+	@EventListener(ContextClosedEvent.class)
+	public void onContextClosed(ContextClosedEvent event) {
+		if (event.getApplicationContext() != applicationContext) return; // A child context closing
+		stopPolling();
+	}
+
+
+	/**
+	 * Gives running jobs until {@code jobScheduler.shutdownTimeout} to finish, then interrupts them.
+	 */
+	@Override
+	public void destroy() throws InterruptedException {
+		stopPolling();
+		Thread poller = pollThread;
+		if (poller != null && poller != Thread.currentThread()) {
+			poller.join(shutdownTimeout);
+		}
+		executorService.shutdown();
+		if (!executorService.awaitTermination(shutdownTimeout.toMillis(), TimeUnit.MILLISECONDS)) {
+			log.warn("Jobs still running after {} - interrupting them.", shutdownTimeout);
+			executorService.shutdownNow();
+		}
+	}
+
+
+	private void stopPolling() {
+		if (stopping) return;
+		stopping = true;
+		Thread poller = pollThread;
+		// exitWhenIdle closes the context from the poll thread itself, which then simply returns.
+		if (poller != null && poller != Thread.currentThread()) {
+			poller.interrupt();
+		}
+		log.info("Job scheduler stopping.");
 	}
 
 

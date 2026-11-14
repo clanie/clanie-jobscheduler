@@ -8,7 +8,13 @@ jobScheduler:
   maxParallelJobs: 2
   pollInterval: PT1M
   exitWhenIdle: true
+  shutdownTimeout: PT10S
 ```
+
+At shutdown the scheduler stops polling as soon as the application context starts closing,
+and gives jobs already running `shutdownTimeout` to finish before interrupting them. Both
+happen before the Mongo client is closed. Keep `shutdownTimeout` plus Spring's
+`spring.lifecycle.timeout-per-shutdown-phase` below the container's stop timeout.
 
 
 ## Jobs and Scheduling
